@@ -489,8 +489,8 @@ Example JSON output:
   "confidence": 92
 }
 ```
-
-Credits
+---
+# Credits
 
 Inspired by:
 
@@ -499,6 +499,7 @@ Inspired by:
 * AniList GraphQL API
 
 * MyAnimeList / Jikan API
+---
 
 ---
 
