@@ -2681,8 +2681,6 @@ local function load_media_title()
 	
 	apply_final()
 	
-	--mp.set_property("force-media-title", p.title)
-	
 	local ani_result, mal_result
 	local ani_done = false
 	local mal_done = false
@@ -2931,3 +2929,4 @@ end
 mp.add_timeout(0, maybe_run_regression)
 
 mp.register_event("file-loaded", load_media_title)
+
