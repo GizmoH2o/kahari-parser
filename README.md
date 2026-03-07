@@ -494,11 +494,11 @@ Credits
 
 Inspired by:
 
-anime-offline-database
+* anime-offline-database
 
-AniList GraphQL API
+* AniList GraphQL API
 
-MyAnimeList / Jikan API
+* MyAnimeList / Jikan API
 
 ---
 
