@@ -1,0 +1,639 @@
+{
+   "dataset_name":"anime_filename_parser_large_test_set",
+   "version":"1.0",
+   "total_cases":100,
+   "cases":[
+      {
+         "filename":"[SubsPlease] Frieren - 01 (1080p) [ABCD].mkv",
+         "result":{
+            "title":"Frieren",
+            "season":1,
+            "episode":1
+         }
+      },
+      {
+         "filename":"[SubsPlease] Frieren - 02 (1080p) [BCDE].mkv",
+         "result":{
+            "title":"Frieren",
+            "season":1,
+            "episode":2
+         }
+      },
+      {
+         "filename":"[SubsPlease] Frieren - 03 (1080p).mkv",
+         "result":{
+            "title":"Frieren",
+            "season":1,
+            "episode":3
+         }
+      },
+      {
+         "filename":"Jujutsu.Kaisen.S02E05.1080p.WEBRip.x265-PSA.mkv",
+         "result":{
+            "title":"Jujutsu Kaisen",
+            "season":2,
+            "episode":5
+         }
+      },
+      {
+         "filename":"Jujutsu.Kaisen.S02E06.1080p.WEBRip.x265-PSA.mkv",
+         "result":{
+            "title":"Jujutsu Kaisen",
+            "season":2,
+            "episode":6
+         }
+      },
+      {
+         "filename":"One Piece - 1071 - Gear Fifth.mkv",
+         "result":{
+            "title":"One Piece",
+            "season":null,
+            "episode":1071
+         }
+      },
+      {
+         "filename":"One.Piece.1072.1080p.CR.WEB-DL.x265.mkv",
+         "result":{
+            "title":"One Piece",
+            "season":null,
+            "episode":1072
+         }
+      },
+      {
+         "filename":"Attack.on.Titan.S03E12.1080p.BluRay.x265.10bit.5.1-FGT.mkv",
+         "result":{
+            "title":"Attack on Titan",
+            "season":3,
+            "episode":12
+         }
+      },
+      {
+         "filename":"Attack.on.Titan.S03E13.720p.WEBRip.x264-RARBG.mkv",
+         "result":{
+            "title":"Attack on Titan",
+            "season":3,
+            "episode":13
+         }
+      },
+      {
+         "filename":"3-gatsu no Lion San no Shou - 05.mkv",
+         "result":{
+            "title":"3-gatsu no Lion",
+            "season":3,
+            "episode":5
+         }
+      },
+      {
+         "filename":"3-gatsu no Lion San no Shou - 06.mkv",
+         "result":{
+            "title":"3-gatsu no Lion",
+            "season":3,
+            "episode":6
+         }
+      },
+      {
+         "filename":"[Erai-raws] Chainsaw Man - 03 [1080p][Multiple Subtitle].mkv",
+         "result":{
+            "title":"Chainsaw Man",
+            "season":1,
+            "episode":3
+         }
+      },
+      {
+         "filename":"[Erai-raws] Chainsaw Man - 04 [1080p][Multiple Subtitle].mkv",
+         "result":{
+            "title":"Chainsaw Man",
+            "season":1,
+            "episode":4
+         }
+      },
+      {
+         "filename":"Demon.Slayer.S03E01.Swordsmith.Village.Arc.1080p.WEBRip.mkv",
+         "result":{
+            "title":"Demon Slayer",
+            "season":3,
+            "episode":1
+         }
+      },
+      {
+         "filename":"Demon.Slayer.S03E02.1080p.WEBRip.x265.mkv",
+         "result":{
+            "title":"Demon Slayer",
+            "season":3,
+            "episode":2
+         }
+      },
+      {
+         "filename":"Spy x Family - 15 [1080p].mkv",
+         "result":{
+            "title":"Spy x Family",
+            "season":1,
+            "episode":15
+         }
+      },
+      {
+         "filename":"Spy.x.Family.S01E16.1080p.WEBRip.mkv",
+         "result":{
+            "title":"Spy x Family",
+            "season":1,
+            "episode":16
+         }
+      },
+      {
+         "filename":"Mob.Psycho.100.S03E07.1080p.WEBRip.x265.mkv",
+         "result":{
+            "title":"Mob Psycho 100",
+            "season":3,
+            "episode":7
+         }
+      },
+      {
+         "filename":"Mob Psycho 100 - 08.mkv",
+         "result":{
+            "title":"Mob Psycho 100",
+            "season":1,
+            "episode":8
+         }
+      },
+      {
+         "filename":"Naruto.Shippuden.480p.Episode.220.mkv",
+         "result":{
+            "title":"Naruto Shippuden",
+            "season":null,
+            "episode":220
+         }
+      },
+      {
+         "filename":"Bleach.Thousand.Year.Blood.War.S01E03.1080p.mkv",
+         "result":{
+            "title":"Bleach Thousand Year Blood War",
+            "season":1,
+            "episode":3
+         }
+      },
+      {
+         "filename":"Vinland.Saga.S02E11.1080p.NF.WEBRip.x265.mkv",
+         "result":{
+            "title":"Vinland Saga",
+            "season":2,
+            "episode":11
+         }
+      },
+      {
+         "filename":"Steins;Gate - 09 - Chaos Theory Homeostasis.mkv",
+         "result":{
+            "title":"Steins;Gate",
+            "season":1,
+            "episode":9
+         }
+      },
+      {
+         "filename":"Re.Zero.S02E13.1080p.WEBRip.x265.mkv",
+         "result":{
+            "title":"Re Zero",
+            "season":2,
+            "episode":13
+         }
+      },
+      {
+         "filename":"Kaguya-sama.Love.is.War.S03E04.1080p.mkv",
+         "result":{
+            "title":"Kaguya-sama Love is War",
+            "season":3,
+            "episode":4
+         }
+      },
+      {
+         "filename":"Bocchi.the.Rock.S01E07.1080p.mkv",
+         "result":{
+            "title":"Bocchi the Rock",
+            "season":1,
+            "episode":7
+         }
+      },
+      {
+         "filename":"Oshi.no.Ko.S01E01.2160p.WEBRip.x265.mkv",
+         "result":{
+            "title":"Oshi no Ko",
+            "season":1,
+            "episode":1
+         }
+      },
+      {
+         "filename":"Fullmetal.Alchemist.Brotherhood.Episode.64.Final.mkv",
+         "result":{
+            "title":"Fullmetal Alchemist Brotherhood",
+            "season":1,
+            "episode":64
+         }
+      },
+      {
+         "filename":"Death.Note.Ep.25.Silence.mkv",
+         "result":{
+            "title":"Death Note",
+            "season":1,
+            "episode":25
+         }
+      },
+      {
+         "filename":"Tokyo.Revengers.S02E10.1080p.WEBRip.mkv",
+         "result":{
+            "title":"Tokyo Revengers",
+            "season":2,
+            "episode":10
+         }
+      },
+      {
+         "filename":"[HorribleSubs] My Hero Academia - 01 [1080p].mkv",
+         "result":{
+            "title":"My Hero Academia",
+            "season":1,
+            "episode":1
+         }
+      },
+      {
+         "filename":"[HorribleSubs] My Hero Academia - 02 [1080p].mkv",
+         "result":{
+            "title":"My Hero Academia",
+            "season":1,
+            "episode":2
+         }
+      },
+      {
+         "filename":"My.Hero.Academia.S04E13.1080p.WEBRip.mkv",
+         "result":{
+            "title":"My Hero Academia",
+            "season":4,
+            "episode":13
+         }
+      },
+      {
+         "filename":"My.Hero.Academia.S04E14.1080p.WEBRip.mkv",
+         "result":{
+            "title":"My Hero Academia",
+            "season":4,
+            "episode":14
+         }
+      },
+      {
+         "filename":"Black.Clover.Episode.170.Final.1080p.mkv",
+         "result":{
+            "title":"Black Clover",
+            "season":1,
+            "episode":170
+         }
+      },
+      {
+         "filename":"Haikyuu.S03E04.720p.mkv",
+         "result":{
+            "title":"Haikyuu",
+            "season":3,
+            "episode":4
+         }
+      },
+      {
+         "filename":"Haikyuu - 05.mkv",
+         "result":{
+            "title":"Haikyuu",
+            "season":1,
+            "episode":5
+         }
+      },
+      {
+         "filename":"Gintama.S05E12.1080p.mkv",
+         "result":{
+            "title":"Gintama",
+            "season":5,
+            "episode":12
+         }
+      },
+      {
+         "filename":"Dragon.Ball.Super.EP131.Final.mkv",
+         "result":{
+            "title":"Dragon Ball Super",
+            "season":1,
+            "episode":131
+         }
+      },
+      {
+         "filename":"Dragon.Ball.Z.Episode.291.mkv",
+         "result":{
+            "title":"Dragon Ball Z",
+            "season":1,
+            "episode":291
+         }
+      },
+      {
+         "filename":"Hunter.x.Hunter.2011.EP148.mkv",
+         "result":{
+            "title":"Hunter x Hunter",
+            "season":1,
+            "episode":148
+         }
+      },
+      {
+         "filename":"Fairy.Tail.S02E15.mkv",
+         "result":{
+            "title":"Fairy Tail",
+            "season":2,
+            "episode":15
+         }
+      },
+      {
+         "filename":"Fairy.Tail - 16.mkv",
+         "result":{
+            "title":"Fairy Tail",
+            "season":1,
+            "episode":16
+         }
+      },
+      {
+         "filename":"Sword.Art.Online.S01E07.mkv",
+         "result":{
+            "title":"Sword Art Online",
+            "season":1,
+            "episode":7
+         }
+      },
+      {
+         "filename":"Sword.Art.Online.S02E01.mkv",
+         "result":{
+            "title":"Sword Art Online",
+            "season":2,
+            "episode":1
+         }
+      },
+      {
+         "filename":"No.Game.No.Life.EP04.mkv",
+         "result":{
+            "title":"No Game No Life",
+            "season":1,
+            "episode":4
+         }
+      },
+      {
+         "filename":"Overlord.S04E03.mkv",
+         "result":{
+            "title":"Overlord",
+            "season":4,
+            "episode":3
+         }
+      },
+      {
+         "filename":"Konosuba.S02E05.mkv",
+         "result":{
+            "title":"Konosuba",
+            "season":2,
+            "episode":5
+         }
+      },
+      {
+         "filename":"Konosuba - 06.mkv",
+         "result":{
+            "title":"Konosuba",
+            "season":1,
+            "episode":6
+         }
+      },
+      {
+         "filename":"Made.in.Abyss.S02E10.mkv",
+         "result":{
+            "title":"Made in Abyss",
+            "season":2,
+            "episode":10
+         }
+      },
+      {
+         "filename":"[Batch] Attack on Titan S01 01-25 Complete 1080p.mkv",
+         "result":{
+            "title":"Attack on Titan",
+            "season":1,
+            "episode":"01-25"
+         }
+      },
+      {
+         "filename":"Naruto Shippuden 001-010 Batch.mkv",
+         "result":{
+            "title":"Naruto Shippuden",
+            "season":null,
+            "episode":"001-010"
+         }
+      },
+      {
+         "filename":"Bleach Episodes 001-020 Batch.mkv",
+         "result":{
+            "title":"Bleach",
+            "season":1,
+            "episode":"001-020"
+         }
+      },
+      {
+         "filename":"One Piece 1000-1010 Batch.mkv",
+         "result":{
+            "title":"One Piece",
+            "season":null,
+            "episode":"1000-1010"
+         }
+      },
+      {
+         "filename":"Spirited.Away.2001.1080p.BluRay.mkv",
+         "result":{
+            "title":"Spirited Away",
+            "season":null,
+            "episode":null
+         }
+      },
+      {
+         "filename":"Your.Name.2016.1080p.BluRay.mkv",
+         "result":{
+            "title":"Your Name",
+            "season":null,
+            "episode":null
+         }
+      },
+      {
+         "filename":"Weathering.With.You.2019.1080p.mkv",
+         "result":{
+            "title":"Weathering With You",
+            "season":null,
+            "episode":null
+         }
+      },
+      {
+         "filename":"Suzume.2022.1080p.mkv",
+         "result":{
+            "title":"Suzume",
+            "season":null,
+            "episode":null
+         }
+      },
+      {
+         "filename":"Akira.1988.1080p.mkv",
+         "result":{
+            "title":"Akira",
+            "season":null,
+            "episode":null
+         }
+      },
+      {
+         "filename":"One.Punch.Man.S02E03.1080p.x265.mkv",
+         "result":{
+            "title":"One Punch Man",
+            "season":2,
+            "episode":3
+         }
+      },
+      {
+         "filename":"One Punch Man - 04.mkv",
+         "result":{
+            "title":"One Punch Man",
+            "season":1,
+            "episode":4
+         }
+      },
+      {
+         "filename":"Parasyte.The.Maxim.EP12.mkv",
+         "result":{
+            "title":"Parasyte The Maxim",
+            "season":1,
+            "episode":12
+         }
+      },
+      {
+         "filename":"Toradora - 07.mkv",
+         "result":{
+            "title":"Toradora",
+            "season":1,
+            "episode":7
+         }
+      },
+      {
+         "filename":"Clannad.After.Story.EP05.mkv",
+         "result":{
+            "title":"Clannad After Story",
+            "season":2,
+            "episode":5
+         }
+      },
+      {
+         "filename":"Angel.Beats.EP09.mkv",
+         "result":{
+            "title":"Angel Beats",
+            "season":1,
+            "episode":9
+         }
+      },
+      {
+         "filename":"Erased.S01E06.mkv",
+         "result":{
+            "title":"Erased",
+            "season":1,
+            "episode":6
+         }
+      },
+      {
+         "filename":"Another.EP03.mkv",
+         "result":{
+            "title":"Another",
+            "season":1,
+            "episode":3
+         }
+      },
+      {
+         "filename":"Future.Diary.EP14.mkv",
+         "result":{
+            "title":"Future Diary",
+            "season":1,
+            "episode":14
+         }
+      },
+      {
+         "filename":"Psycho.Pass.S02E04.mkv",
+         "result":{
+            "title":"Psycho Pass",
+            "season":2,
+            "episode":4
+         }
+      },
+      {
+         "filename":"Durarara.S01E08.mkv",
+         "result":{
+            "title":"Durarara",
+            "season":1,
+            "episode":8
+         }
+      },
+      {
+         "filename":"Noragami.S02E09.mkv",
+         "result":{
+            "title":"Noragami",
+            "season":2,
+            "episode":9
+         }
+      },
+      {
+         "filename":"Blue.Exorcist.S02E02.mkv",
+         "result":{
+            "title":"Blue Exorcist",
+            "season":2,
+            "episode":2
+         }
+      },
+      {
+         "filename":"Fire.Force.S02E15.mkv",
+         "result":{
+            "title":"Fire Force",
+            "season":2,
+            "episode":15
+         }
+      },
+      {
+         "filename":"Dr.Stone.S03E15.1080p.WEBRip.x265.mkv",
+         "result":{
+            "title":"Dr Stone",
+            "season":3,
+            "episode":15
+         }
+      },
+      {
+         "filename":"The.Promised.Neverland.S02E05.mkv",
+         "result":{
+            "title":"The Promised Neverland",
+            "season":2,
+            "episode":5
+         }
+      },
+      {
+         "filename":"Golden.Kamuy.S03E04.mkv",
+         "result":{
+            "title":"Golden Kamuy",
+            "season":3,
+            "episode":4
+         }
+      },
+      {
+         "filename":"Food.Wars.S05E07.mkv",
+         "result":{
+            "title":"Food Wars",
+            "season":5,
+            "episode":7
+         }
+      },
+      {
+         "filename":"Beastars.S02E03.mkv",
+         "result":{
+            "title":"Beastars",
+            "season":2,
+            "episode":3
+         }
+      },
+      {
+         "filename":"Ranking.of.Kings.EP11.mkv",
+         "result":{
+            "title":"Ranking of Kings",
+            "season":1,
+            "episode":11
+         }
+      }
+   ]
+}
