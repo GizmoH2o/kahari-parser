@@ -1,6 +1,6 @@
 # Kahari Anime Filename Parser
 
-A high-accuracy **Lua parser for anime filenames** designed for **mpv environments**.
+Kahari Parser is a high-accuracy anime filename parser written in Lua, designed for integration with the **mpv media player**. It converts inconsistent anime release filenames into clean, normalized titles suitable for metadata lookup, library organization, and media automation.
 It extracts structured metadata from messy release filenames including:
 
 * Anime title
@@ -11,6 +11,20 @@ It extracts structured metadata from messy release filenames including:
 * Video metadata
 
 The parser is optimized for **real-world torrent and streaming release formats** and includes **caching**, **heuristics**, and **noise filtering**.
+
+It handles:
+
+Scene release formats
+
+* Anime-specific naming conventions
+
+* Japanese season naming patterns
+
+* Metadata noise (codec, bitrate, CRC, etc.)
+
+* Episode vs movie detection
+
+* External metadata correction (AniList + MAL)
 
 ---
 
@@ -475,6 +489,16 @@ Example JSON output:
   "confidence": 92
 }
 ```
+
+Credits
+
+Inspired by:
+
+anime-offline-database
+
+AniList GraphQL API
+
+MyAnimeList / Jikan API
 
 ---
 
