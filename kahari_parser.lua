@@ -10,7 +10,7 @@ local utils = require("mp.utils")
 local ENABLE_CACHE = true
 local CACHE_TTL_SECONDS = 12 * 60 * 60
 local CACHE_MAX_ENTRIES = 256
-local DEBUG_MATCHING = false
+local DEBUG_MATCHING = true
 
 ------------------------------------------------------------
 -- CACHE
@@ -2929,4 +2929,5 @@ local function maybe_run_regression()
 end
 
 mp.add_timeout(0, maybe_run_regression)
+
 mp.register_event("file-loaded", load_media_title)
