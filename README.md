@@ -392,18 +392,6 @@ Example JSON output:
 
 ---
 
-# Future Improvements
-
-Possible future features:
-
-* Anime database lookup (AniList / MAL)
-* Multi-episode detection
-* Movie detection
-* Batch release detection
-* Subtitle language detection
-
----
-
 # License
 
 MIT License
