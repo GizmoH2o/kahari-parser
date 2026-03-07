@@ -14,7 +14,7 @@ The parser is optimized for **real-world torrent and streaming release formats**
 
 It handles:
 
-Scene release formats
+* Scene release formats
 
 * Anime-specific naming conventions
 
