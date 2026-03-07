@@ -191,6 +191,94 @@ is_audio_channel_pattern()
 extract_japanese_season_phrase()
 ```
 
+## System Requirements
+
+Before using the Kahari Anime Filename Parser, ensure the following dependencies are installed.
+
+### Required Software
+
+* **Lua 5.1+**
+* **mpv media player** (if used as an mpv script)
+* **curl** (for HTTP requests if metadata lookup is enabled)
+
+---
+
+## Installing Dependencies
+
+### Linux (Debian / Ubuntu)
+
+```bash
+sudo apt update
+sudo apt install lua5.3 curl mpv
+```
+
+### Arch Linux
+
+```bash
+sudo pacman -S lua curl mpv
+```
+
+### Fedora
+
+```bash
+sudo dnf install lua curl mpv
+```
+
+### macOS (Homebrew)
+
+```bash
+brew install lua curl mpv
+```
+
+### Windows
+
+1. Install **mpv**
+2. Install **Lua**
+3. Install **curl**
+
+You can verify installation with:
+
+```bash
+curl --version
+```
+
+Example output:
+
+```
+curl 8.x.x (x86_64)
+libcurl/8.x.x OpenSSL
+```
+
+---
+
+## Verifying curl Availability
+
+The parser may call external APIs for metadata. To verify `curl` is available:
+
+```bash
+which curl
+```
+
+Expected output:
+
+```
+/usr/bin/curl
+```
+
+If no path is returned, install curl using your system package manager.
+
+---
+
+## Why curl Is Required
+
+`curl` is used for:
+
+* Anime metadata lookup (AniList / MAL integration)
+* Remote episode title fetching
+* Future API integrations
+* Debugging HTTP requests
+
+
 ---
 
 # Installation
