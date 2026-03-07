@@ -197,7 +197,6 @@ Before using the Kahari Anime Filename Parser, ensure the following dependencies
 
 ### Required Software
 
-* **Lua 5.1+**
 * **mpv media player** (if used as an mpv script)
 * **curl** (for HTTP requests if metadata lookup is enabled)
 
@@ -233,8 +232,7 @@ brew install lua curl mpv
 ### Windows
 
 1. Install **mpv**
-2. Install **Lua**
-3. Install **curl**
+2. Install **curl**
 
 You can verify installation with:
 
