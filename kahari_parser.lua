@@ -127,7 +127,7 @@ local function ordinal(n)
 end
 
 ------------------------------------------------------------
--- JAPANESE SEASON NORMALIZATION (San no Shou Ã¢â€ â€™ Season 3)
+-- JAPANESE SEASON NORMALIZATION (San no Shou ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Season 3)
 ------------------------------------------------------------
 local JAPANESE_NUMBERS = {
     ichi = 1,
@@ -327,9 +327,9 @@ add("format", {"movie","theatrical"})
 -- JAPANESE ARC PART WORDS (belong to TITLE, not episode title)
 ------------------------------------------------------------
 local ARC_TITLE_WORDS = {
-    ["zenpen"] = true,   -- Ã¥â€°ÂÃ§Â·Â¨ (part 1 / prologue)
-    ["kouhen"] = true,   -- Ã¥Â¾Å’Ã§Â·Â¨ (part 2 / conclusion)
-    ["hen"]    = true,   -- Ã§Â·Â¨ (arc)
+    ["zenpen"] = true,   -- ÃƒÂ¥Ã¢â‚¬Â°Ã‚ÂÃƒÂ§Ã‚Â·Ã‚Â¨ (part 1 / prologue)
+    ["kouhen"] = true,   -- ÃƒÂ¥Ã‚Â¾Ã…â€™ÃƒÂ§Ã‚Â·Ã‚Â¨ (part 2 / conclusion)
+    ["hen"]    = true,   -- ÃƒÂ§Ã‚Â·Ã‚Â¨ (arc)
 }
 
 ------------------------------------------------------------
@@ -382,7 +382,7 @@ local SEPARATORS = {
     ["("]=true, [")"]=true,
     ["."]=true, ["_"]=true,
     ["-"]=true, [" "]=true,
-    ["Ã¢â‚¬â€œ"]=true, ["Ã¢â‚¬â€"]=true
+    ["ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“"]=true, ["ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"]=true
 }
 
 local function tokenize(filename)
@@ -415,7 +415,7 @@ end
 ------------------------------------------------------------
 local function classify(raw)
 
-    -- strip version suffix early (E10v2 Ã¢â€ â€™ E10)
+    -- strip version suffix early (E10v2 ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ E10)
     raw = raw:gsub("([Ss]%d+[Ee]%d+)[Vv]%d+$", "%1")
     raw = raw:gsub("([Ee]%d+)[Vv]%d+$", "%1")
     raw = raw:gsub("([Ee][Pp]?%d+)[Vv]%d+$", "%1")
@@ -538,15 +538,30 @@ local function resolve_number_role(tokens, i)
     local t = tokens[i]
     if not t or t.kind ~= "number" then return nil end
 
-        local function neighbor_word_value(idx, step)
+    local function neighbor_word_value(idx, step)
         local j = idx + step
         while tokens[j] and tokens[j].kind == "separator" do
             j = j + step
         end
-        return tokens[j] and tokens[j].value:lower() or nil
+        if not tokens[j] then
+            return nil, nil
+        end
+        return tokens[j].value:lower(), j
     end
 
-    local prev = neighbor_word_value(i, -1)
+    local function has_separator_between(left, right, value)
+        if not left or not right then return false end
+        local a = math.min(left, right) + 1
+        local b = math.max(left, right) - 1
+        for k = a, b do
+            if tokens[k] and tokens[k].value == value then
+                return true
+            end
+        end
+        return false
+    end
+
+    local prev, prev_idx = neighbor_word_value(i, -1)
 
     -- Movie index
     if prev == "movie" or prev == "film" then
@@ -560,6 +575,10 @@ local function resolve_number_role(tokens, i)
 
     -- Season keyword
     if prev == "season" then
+        -- Treat dashed forms like "Season - 09" as episode context, not season index.
+        if has_separator_between(prev_idx, i, "-") then
+            return "unknown"
+        end
         return "season"
     end
 
@@ -617,6 +636,40 @@ local function detect_metadata_boundary(tokens)
     end
 
     return nil
+end
+
+------------------------------------------------------------
+-- STRUCTURAL PATTERN DETECTION
+------------------------------------------------------------
+-- Seed season/episode from high-confidence filename structures
+-- before token-by-token heuristics run.
+local function detect_structural_patterns(filename)
+    local patterns = {}
+    if type(filename) ~= "string" or filename == "" then
+        return patterns
+    end
+
+    local lower = filename:lower()
+
+    -- Fansub style: "2nd Season - 09"
+    do
+        local ord_num, ep_num = lower:match("(%d+)%a%a%s+season%s*[-–—]%s*(%d+)")
+        if ord_num and ep_num then
+            patterns.season = tonumber(ord_num)
+            patterns.episode = tonumber(ep_num)
+        end
+    end
+
+    -- Variant: "Season 2 - 09"
+    if not (patterns.season and patterns.episode) then
+        local season_num, ep_num = lower:match("season%s+(%d+)%s*[-–—]%s*(%d+)")
+        if season_num and ep_num then
+            patterns.season = tonumber(season_num)
+            patterns.episode = tonumber(ep_num)
+        end
+    end
+
+    return patterns
 end
 
 ------------------------------------------------------------
@@ -695,6 +748,26 @@ local function parseContext(tokens, patterns)
             j = j + 1
         end
         return tokens[j]
+    end
+
+    local function next_non_separator_index(idx)
+        local j = idx + 1
+        while tokens[j] and tokens[j].kind == "separator" do
+            j = j + 1
+        end
+        return j, tokens[j]
+    end
+
+    local function has_dash_between_indices(left, right)
+        if not left or not right then return false end
+        local a = math.min(left, right) + 1
+        local b = math.max(left, right) - 1
+        for k = a, b do
+            if tokens[k] and tokens[k].value == "-" then
+                return true
+            end
+        end
+        return false
     end
 
     ------------------------------------------------------------
@@ -911,44 +984,47 @@ local function parseContext(tokens, patterns)
 				number_context = nil
 			end
 
-			-- Season detection (numeric + Japanese)
-			if not consumed and not info.season then
-				local vl = v:lower()
+            -- Season detection (numeric + Japanese)
+            if not consumed and not info.season then
+                local vl = v:lower()
+                local next_sig_idx, next_sig = next_non_separator_index(i)
 
-				-- S3
-				local ss = vl:match("^s(%d+)$")
+                -- S3
+                local ss = vl:match("^s(%d+)$")
 
-				-- 2nd Season / 3rd Season
-				local ord = vl:match("^(%d+)(st|nd|rd|th)$")
+                -- 2nd Season / 3rd Season
+                local ord = vl:match("^(%d+)%a%a$")
 
-				-- Japanese: San no Shou / Ni no Shou
-				local js = match_japanese_season(tokens, i)
+                -- Japanese: San no Shou / Ni no Shou
+                local js = match_japanese_season(tokens, i)
 
-				if ord and n1 and n1.value:lower() == "season" then
-					info.season = tonumber(ord)
-					info._episode_score = info._episode_score + (30 * w)
-					consumed = true
+                if ord and next_sig and next_sig.kind == "word" and next_sig.value:lower() == "season" then
+                    info.season = tonumber(ord)
+                    info._episode_score = info._episode_score + (30 * w)
+                    -- Keep ordinal season wording in the title (e.g., "2nd Season").
 
-				elseif ss then
-					info.season = tonumber(ss)
-					info._episode_score = info._episode_score + (30 * w)
-					consumed = true
+                elseif ss then
+                    info.season = tonumber(ss)
+                    info._episode_score = info._episode_score + (30 * w)
+                    consumed = true
 
-				elseif vl == "season" and n1 and n1.kind == "number" then
-					info.season = tonumber(n1.value)
-					info._episode_score = info._episode_score + (30 * w)
-					consumed = true
-					tokens[i+1]._consumed = true
+                elseif vl == "season" and next_sig and next_sig.kind == "number" then
+                    -- Do not treat "Season - 09" as season index 9.
+                    -- Keep "Season" in title and let episode detection consume 09.
+                    if not has_dash_between_indices(i, next_sig_idx) then
+                        info.season = tonumber(next_sig.value)
+                        info._episode_score = info._episode_score + (30 * w)
+                        consumed = true
+                        tokens[next_sig_idx]._consumed = true
+                    end
 
-				-- Japanese pattern: "San no Shou"
-				elseif js then
-					info.season = js
-					info._episode_score = info._episode_score + (30 * w)
-					--consumed = true
-				end
-			end
-			
-			------------------------------------------------
+                -- Japanese pattern: "San no Shou"
+                elseif js then
+                    info.season = js
+                    info._episode_score = info._episode_score + (30 * w)
+                    --consumed = true
+                end
+            end
             -- EXPLICIT EPISODE TOKENS (S01E08 / 1x08 / EP08)
             ------------------------------------------------
             local s,e = detect_episode_token(v)
@@ -1350,7 +1426,7 @@ local function parseContext(tokens, patterns)
         info.title = table.concat(title_parts, " ")
     end
 	
-	-- Normalize Japanese season wording (San no Shou Ã¢â€ â€™ Season 3)
+	-- Normalize Japanese season wording (San no Shou ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Season 3)
 	if info.title and not info.season then
 		local js = extract_japanese_season_phrase(info.title)
 		if js then
@@ -1381,9 +1457,9 @@ end
 
 -- Source-based duration thresholds (minutes)
 local NORMALIZE_DURATION_THRESHOLDS = {
-    tv = {episode_max = 45},          -- Episodes usually Ã¢â€°Â¤ 45 min
-    ova = {episode_max = 60},          -- OVAs 40Ã¢â‚¬â€œ60 min, treat >60 as movie
-    special = {episode_max = 60},      -- Specials 40Ã¢â‚¬â€œ60 min, treat >60 as movie
+    tv = {episode_max = 45},          -- Episodes usually ÃƒÂ¢Ã¢â‚¬Â°Ã‚Â¤ 45 min
+    ova = {episode_max = 60},          -- OVAs 40ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“60 min, treat >60 as movie
+    special = {episode_max = 60},      -- Specials 40ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“60 min, treat >60 as movie
     movie = {episode_max = 120},       -- Movies usually > 60 min
 }
 
@@ -1540,7 +1616,7 @@ local function normalize(p, chosen)
         if p.episode_title and p.episode_title ~= "" then
             local ep = clean_title(p.episode_title)
             if ep and ep ~= "" and not normalized_contains(base, ep) then
-                base = base .. " " .. ep
+                base = base .. ": " .. ep
             end
         end
 
@@ -1588,7 +1664,7 @@ local function normalize(p, chosen)
                     or lower_base:find("%f[%w]gekijouban%f[%W]")
                     or lower_base:find("%f[%w]gekijoban%f[%W]"))
             then
-                base = base .. " " .. ep
+                base = base .. ": " .. ep
             end
         end
 
@@ -1697,7 +1773,7 @@ local function extract_season(title)
 
     local n =
         t:match("season%s+(%d+)") or
-        t:match("(%d+)(st|nd|rd|th)%s+season") or
+        t:match("(%d+)%a%a%s+season") or
         t:match("(%d+)[a-z][a-z]?%s+season")
 
     if n then return tonumber(n) end
@@ -2630,7 +2706,8 @@ function Parser:new(filename)
         tokens[i] = t
     end
 	
-    local patterns = {}
+        -- Start with structural filename patterns (e.g., "2nd Season - 09").
+    local patterns = detect_structural_patterns(filename)
     local movie_boundary = detect_movie_boundary(tokens)
     if movie_boundary then
         patterns.movie_boundary = movie_boundary.boundary
@@ -2657,12 +2734,6 @@ end
 ------------------------------------------------------------
 -- LOAD MEDIA TITLE
 ------------------------------------------------------------
-local function resolve_canonical_title(file_name_no_ext)
-    local parsed = Parser:new(file_name_no_ext)
-    local predicted = normalize(parsed, nil)
-    return predicted, parsed
-end
-
 local function load_media_title()
     local path = mp.get_property("filename/no-ext") or ""
 
@@ -2670,7 +2741,23 @@ local function load_media_title()
 	local chosen
     if not p.title then return end
 	
-	p.title = p.title:gsub("%s+[Ss]eason$", "")
+    -- Avoid stripping explicit season labels like "2nd Season" or "Season 2".
+    local lower_title = p.title:lower()
+    local has_ordinal_season =
+        lower_title:match("%d+st%s+season$") ~= nil
+        or lower_title:match("%d+nd%s+season$") ~= nil
+        or lower_title:match("%d+rd%s+season$") ~= nil
+        or lower_title:match("%d+th%s+season$") ~= nil
+
+    local has_explicit_season_label =
+        has_ordinal_season
+        or lower_title:match("%d+%s+season$") ~= nil
+        or lower_title:match("season%s+%d+$") ~= nil
+        or lower_title:match("final%s+season$") ~= nil
+
+    if not has_explicit_season_label then
+        p.title = p.title:gsub("%s+[Ss]eason$", "")
+    end
 	
 	local function apply_final()
         local final = normalize(p, chosen)
@@ -2680,6 +2767,8 @@ local function load_media_title()
     end
 	
 	apply_final()
+	
+	--mp.set_property("force-media-title", p.title)
 	
 	local ani_result, mal_result
 	local ani_done = false
@@ -2830,103 +2919,4 @@ local function load_media_title()
 	
 end
 
-local function strip_last_extension(name)
-    if type(name) ~= "string" then return "" end
-    return (name:gsub("%.[^%./\\]+$", ""))
-end
-
-local function run_regression_from_json(json_path, out_path)
-    local fh = io.open(json_path, "rb")
-    if not fh then
-        mp.msg.error("anime parser regression: cannot open json: " .. tostring(json_path))
-        return nil
-    end
-
-    local raw = fh:read("*a")
-    fh:close()
-
-    local ok_json, data = pcall(utils.parse_json, raw or "")
-    if not ok_json or type(data) ~= "table" then
-        mp.msg.error("anime parser regression: invalid json")
-        return nil
-    end
-
-    local total = 0
-    local matched = 0
-    local mismatches = {}
-
-    for i, item in ipairs(data) do
-        local file_name = item and item.file_name
-        local expected = item and (item.formatted_title or item.title)
-
-        if type(file_name) == "string" and type(expected) == "string" and expected ~= "" then
-            total = total + 1
-
-            local no_ext = strip_last_extension(file_name)
-            local predicted, parsed = resolve_canonical_title(no_ext)
-            predicted = predicted or ""
-
-            if predicted == expected then
-                matched = matched + 1
-            else
-                mismatches[#mismatches+1] = {
-                    index = i,
-                    file_name = file_name,
-                    expected = expected,
-                    predicted = predicted,
-                    title = parsed and parsed.title or nil,
-                    episode = parsed and parsed.episode or nil,
-                    season = parsed and parsed.season or nil,
-                    year = parsed and parsed.year or nil,
-                    movie_index = parsed and parsed.movie_index or nil,
-                    episode_title = parsed and parsed.episode_title or nil,
-                    type = parsed and parsed.type or nil,
-                }
-            end
-        end
-    end
-
-    local accuracy = (total > 0) and (matched / total) or 0
-    local report = {
-        json_path = json_path,
-        total = total,
-        matched = matched,
-        mismatch_count = #mismatches,
-        accuracy = accuracy,
-        mismatches = mismatches,
-    }
-
-    if out_path and out_path ~= "" then
-        local out = io.open(out_path, "wb")
-        if out then
-            out:write(utils.format_json(report))
-            out:close()
-        else
-            mp.msg.error("anime parser regression: cannot write report: " .. tostring(out_path))
-        end
-    end
-
-    mp.msg.info(string.format("anime parser regression: matched %d/%d (%.2f%%)", matched, total, accuracy * 100))
-    return report
-end
-
-local function maybe_run_regression()
-    local json_path = mp.get_opt("anime_parser_regression_json")
-    if not json_path or json_path == "" then
-        return
-    end
-
-    local out_path = mp.get_opt("anime_parser_regression_out") or ""
-    local quit_opt = (mp.get_opt("anime_parser_regression_quit") or "yes"):lower()
-
-    run_regression_from_json(json_path, out_path)
-
-    if quit_opt ~= "no" and quit_opt ~= "false" and quit_opt ~= "0" then
-        mp.commandv("quit", "0")
-    end
-end
-
-mp.add_timeout(0, maybe_run_regression)
-
 mp.register_event("file-loaded", load_media_title)
-
