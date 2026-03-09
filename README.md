@@ -494,7 +494,7 @@ Example JSON output:
 
 Inspired by:
 
-* anime-offline-database
+* Habari
 
 * AniList GraphQL API
 
