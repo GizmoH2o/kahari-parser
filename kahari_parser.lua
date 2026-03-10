@@ -90,6 +90,7 @@ local function is_release_group(tokens, i)
     local prev = tokens[i-1]
 
     if not t then return false end
+    if t._is_release_group then return true end
 
     -- Case: "- GroupName"
     if prev and prev.value == "-" and t.kind == "word" then
@@ -125,6 +126,19 @@ local function ordinal(n)
     end
     return tostring(n) .. suffix
 end
+
+local ORDINAL_WORD_NUMBERS = {
+    first = 1,
+    second = 2,
+    third = 3,
+    fourth = 4,
+    fifth = 5,
+    sixth = 6,
+    seventh = 7,
+    eighth = 8,
+    ninth = 9,
+    tenth = 10,
+}
 
 ------------------------------------------------------------
 -- JAPANESE SEASON NORMALIZATION (San no Shou ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Season 3)
@@ -319,9 +333,28 @@ add("video", {"h264","h265","x264","x265","hevc","av1"})
 add("audio", {"aac","flac","mp3","opus","ac3"})
 add("source", {"bluray","bdrip","brrip","dvdrip","hdrip","web","webdl","webrip","hdtv","cam","ts"})
 add("resolution", {"480p","720p","1080p","2160p"})
-add("language", {"eng","jp","jpn","dual","multi"})
-add("subtitle", {"sub","dub","dual","multi"})
+add("language", {"eng","english","jp","jpn","french","german","spanish","hindi","dub","dual","multi"})
+add("subtitles", {"sub","subs","subtitle","subtitles","vostfr"})
+add("release_information", {"batch","complete","patch","final"})
 add("format", {"movie","theatrical"})
+
+local MULTI_TOKEN_KEYWORDS = {
+    { words = {"dual", "audio"}, key = "language", value = "Dual Audio" },
+    { words = {"multi", "audio"}, key = "language", value = "Multi Audio" },
+    { words = {"multiple", "audio"}, key = "language", value = "Multiple Audio" },
+    { words = {"triple", "audio"}, key = "language", value = "Triple Audio" },
+
+    { words = {"dual", "dub"}, key = "language", value = "Dual Dub" },
+
+    { words = {"multi", "subs"}, key = "subtitles", value = "Multi Subs" },
+    { words = {"multi", "sub"}, key = "subtitles", value = "Multi Sub" },
+    { words = {"multi", "subtitle"}, key = "subtitles", value = "Multi Subtitle" },
+    { words = {"multi", "subtitles"}, key = "subtitles", value = "Multi Subtitles" },
+
+    { words = {"multiple", "subs"}, key = "subtitles", value = "Multiple Subs" },
+    { words = {"multiple", "subtitle"}, key = "subtitles", value = "Multiple Subtitle" },
+    { words = {"multiple", "subtitles"}, key = "subtitles", value = "Multiple Subtitles" },
+}
 
 ------------------------------------------------------------
 -- JAPANESE ARC PART WORDS (belong to TITLE, not episode title)
@@ -371,21 +404,112 @@ local MOVIE_MIN   = 50*60  -- e.g., 50 minutes
 -- TOKEN
 ------------------------------------------------------------
 local function newToken(value, kind)
-    return { value = value, kind = kind, keyword = nil }
+    return {
+        value = value,
+        kind = kind,
+        keyword = nil,
+        category = "unknown",
+        enclosed = false,
+        _group_id = nil,
+        _is_release_group = false,
+        _title_bracket = false,
+    }
 end
 
 ------------------------------------------------------------
 -- TOKENIZER
 ------------------------------------------------------------
+local FULLWIDTH_TO_ASCII = {
+    ["\227\128\128"] = " ",
+    ["\239\188\136"] = "(", ["\239\188\137"] = ")",
+    ["\227\128\140"] = "[", ["\227\128\141"] = "]",
+    ["\227\128\142"] = "[", ["\227\128\143"] = "]",
+    ["\227\128\144"] = "[", ["\227\128\145"] = "]",
+    ["\239\188\187"] = "[", ["\239\188\189"] = "]",
+    ["\239\188\142"] = ".", ["\239\188\140"] = ",",
+    ["\239\188\139"] = "+", ["\239\189\158"] = "~",
+    ["\239\188\144"] = "0", ["\239\188\145"] = "1", ["\239\188\146"] = "2",
+    ["\239\188\147"] = "3", ["\239\188\148"] = "4", ["\239\188\149"] = "5",
+    ["\239\188\150"] = "6", ["\239\188\151"] = "7", ["\239\188\152"] = "8",
+    ["\239\188\153"] = "9",
+}
+
+local DASH_VARIANTS = {
+    "\226\128\144", -- hyphen
+    "\226\128\145", -- non-breaking hyphen
+    "\226\128\146", -- figure dash
+    "\226\128\147", -- en dash
+    "\226\128\148", -- em dash
+    "\226\128\149", -- horizontal bar
+    "\239\188\141", -- full-width hyphen-minus
+    "\226\136\146", -- minus sign
+}
+
+local OPENING_BRACKETS = {
+    ["["] = true,
+    --["("] = true,
+    ["{"] = true,
+}
+
+local CLOSING_BRACKETS = {
+    ["]"] = true,
+    --[")"] = true,
+    ["}"] = true,
+}
+
+local DELIMITER_CHARS = {
+    [" "] = true,
+    ["_"] = true,
+    ["."] = true,
+    ["|"] = true,
+    [","] = true,
+}
+
+local HARD_SEPARATOR_CHARS = {
+    ["-"] = true,
+    ["+"] = true,
+    ["~"] = true,
+    ["&"] = true,
+}
+
 local SEPARATORS = {
     ["["]=true, ["]"]=true,
     ["("]=true, [")"]=true,
+    ["{"]=true, ["}"]=true,
     ["."]=true, ["_"]=true,
     ["-"]=true, [" "]=true,
-    ["ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“"]=true, ["ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"]=true
+    ["+"]=true, ["~"]=true,
+    ["|"]=true, [","]=true,
+    ["&"]=true,
 }
 
+local BRACKET_PAIRS = {
+    ["["] = "]",
+    ["("] = ")",
+    ["{"] = "}",
+}
+
+local function normalize_filename_for_parse(s)
+    if type(s) ~= "string" or s == "" then
+        return s or ""
+    end
+
+    for from, to in pairs(FULLWIDTH_TO_ASCII) do
+        s = s:gsub(from, to)
+    end
+
+    for i = 1, #DASH_VARIANTS do
+        s = s:gsub(DASH_VARIANTS[i], "-")
+    end
+
+    s = s:gsub("\195\151", "x") -- multiplication sign
+
+    return s
+end
+
 local function tokenize(filename)
+    filename = normalize_filename_for_parse(filename or "")
+
     local tokens = {}
     local buffer = {}
 
@@ -410,6 +534,20 @@ local function tokenize(filename)
     return tokens
 end
 
+local function extract_file_extension(filename)
+    if type(filename) ~= "string" or filename == "" then
+        return nil
+    end
+
+    local base = filename:gsub("^.*[/\\]", "")
+    local ext = base:match("%.([A-Za-z0-9]+)$")
+    if not ext or #ext < 1 or #ext > 8 then
+        return nil
+    end
+
+    return ext:lower()
+end
+
 ------------------------------------------------------------
 -- CLASSIFY
 ------------------------------------------------------------
@@ -422,13 +560,31 @@ local function classify(raw)
     raw = raw:gsub("^(%d+)[Vv]%d+$", "%1")
 
     if raw:match("^%d+$") then
-        return newToken(raw, "number")
+        local t = newToken(raw, "number")
+        t.category = "unknown"
+        return t
     elseif #raw == 1 and SEPARATORS[raw] then
-        return newToken(raw, "separator")
+        local t = newToken(raw, "separator")
+        if OPENING_BRACKETS[raw] then
+            t.category = "opening_bracket"
+        elseif CLOSING_BRACKETS[raw] then
+            t.category = "closing_bracket"
+        elseif DELIMITER_CHARS[raw] then
+            t.category = "delimiter"
+        elseif HARD_SEPARATOR_CHARS[raw] then
+            t.category = "separator"
+        else
+            t.category = "separator"
+        end
+        return t
     elseif #raw == 8 and raw:match("^[%x]+$") then
-        return newToken(raw, "crc32")
+        local t = newToken(raw, "crc32")
+        t.category = "unknown"
+        return t
     else
-        return newToken(raw, "word")
+        local t = newToken(raw, "word")
+        t.category = "unknown"
+        return t
     end
 end
 
@@ -449,6 +605,241 @@ local function assignKeyword(token)
 			token.keyword = "source"
 		end
 	end
+end
+
+local function is_matching_bracket_pair(open_bracket, close_bracket)
+    return BRACKET_PAIRS[open_bracket] == close_bracket
+end
+
+local function prev_non_separator_token(tokens, idx)
+    local j = idx - 1
+    while tokens[j] and tokens[j].kind == "separator" do
+        j = j - 1
+    end
+    return tokens[j], j
+end
+
+local function next_non_separator_token(tokens, idx)
+    local j = idx + 1
+    while tokens[j] and tokens[j].kind == "separator" do
+        j = j + 1
+    end
+    return tokens[j], j
+end
+
+local function annotate_enclosed_groups(tokens)
+    local groups = {}
+    local stack = {}
+
+    for i = 1, #tokens do
+        local t = tokens[i]
+
+        if t and t.category == "opening_bracket" then
+            stack[#stack + 1] = { idx = i, value = t.value }
+
+        elseif t and t.category == "closing_bracket" then
+            for s = #stack, 1, -1 do
+                local opener = stack[s]
+                if is_matching_bracket_pair(opener.value, t.value) then
+                    table.remove(stack, s)
+
+                    local group_id = #groups + 1
+                    local group = {
+                        id = group_id,
+                        start_idx = opener.idx,
+                        end_idx = i,
+                        open = opener.value,
+                        close = t.value,
+                    }
+                    groups[group_id] = group
+
+                    for j = opener.idx + 1, i - 1 do
+                        local inner = tokens[j]
+                        if inner and inner.category ~= "opening_bracket" and inner.category ~= "closing_bracket" then
+                            inner.enclosed = true
+                            inner._group_id = group_id
+                        end
+                    end
+
+                    local prev_t = prev_non_separator_token(tokens, opener.idx)
+                    local next_t = next_non_separator_token(tokens, i)
+                    local maybe_title_bracket =
+                        prev_t and next_t
+                        and (prev_t.kind == "word" or prev_t.kind == "number")
+                        and (next_t.kind == "word" or next_t.kind == "number")
+
+                    if maybe_title_bracket then
+                        local allowed = true
+                        for j = opener.idx + 1, i - 1 do
+                            local inner = tokens[j]
+                            if inner then
+                                if inner.kind == "crc32" then
+                                    allowed = false
+                                    break
+                                end
+                                if inner.keyword and (
+                                    inner.keyword == "resolution"
+                                    or inner.keyword == "video"
+                                    or inner.keyword == "audio"
+                                    or inner.keyword == "source"
+                                ) then
+                                    allowed = false
+                                    break
+                                end
+                            end
+                        end
+
+                        if allowed then
+                            for j = opener.idx + 1, i - 1 do
+                                if tokens[j] then
+                                    tokens[j]._title_bracket = true
+                                end
+                            end
+                        end
+                    end
+
+                    break
+                end
+            end
+        end
+    end
+
+    tokens._groups = groups
+    return groups
+end
+
+local function group_to_text(tokens, group)
+    if not group then return nil end
+
+    local out = {}
+    for i = group.start_idx + 1, group.end_idx - 1 do
+        local t = tokens[i]
+        if t then
+            if t.category == "delimiter" then
+                out[#out + 1] = " "
+            elseif t.category ~= "opening_bracket" and t.category ~= "closing_bracket" then
+                out[#out + 1] = t.value
+            end
+        end
+    end
+
+    local s = table.concat(out)
+    s = s:gsub("%s+", " ")
+    s = s:gsub("^%s+", "")
+    s = s:gsub("%s+$", "")
+    return s
+end
+
+local function group_is_metadata_like(tokens, group)
+    for i = group.start_idx + 1, group.end_idx - 1 do
+        local t = tokens[i]
+        if t then
+            if t.kind == "crc32" then
+                return true
+            end
+
+            if t.kind == "number" then
+                local n = tonumber(t.value)
+                if n and looks_like_resolution(n) then
+                    return true
+                end
+            end
+
+            if t.keyword and (
+                t.keyword == "resolution"
+                or t.keyword == "video"
+                or t.keyword == "audio"
+                or t.keyword == "source"
+                or t.keyword == "subtitles"
+            ) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function mark_release_group_tokens(tokens, metadata_boundary)
+    if type(tokens) ~= "table" then return nil end
+
+    for i = 1, #tokens do
+        if tokens[i] then
+            tokens[i]._is_release_group = false
+        end
+    end
+
+    local groups = tokens._groups or {}
+    local chosen = nil
+
+    for i = 1, #groups do
+        local g = groups[i]
+        if g
+           and g.start_idx <= math.floor(#tokens * 0.40)
+           and not group_is_metadata_like(tokens, g)
+           and (not metadata_boundary or g.start_idx < metadata_boundary)
+        then
+            local text = group_to_text(tokens, g)
+            if text and text ~= "" then
+                chosen = g
+                break
+            end
+        end
+    end
+
+    if not chosen then
+        for i = #groups, 1, -1 do
+            local g = groups[i]
+            if g
+               and g.end_idx >= math.floor(#tokens * 0.60)
+               and not group_is_metadata_like(tokens, g)
+            then
+                local text = group_to_text(tokens, g)
+                if text and text ~= "" then
+                    chosen = g
+                    break
+                end
+            end
+        end
+    end
+
+    if not chosen then
+        return nil
+    end
+
+    for i = chosen.start_idx + 1, chosen.end_idx - 1 do
+        if tokens[i] then
+            tokens[i]._is_release_group = true
+        end
+    end
+
+    return group_to_text(tokens, chosen)
+end
+
+local function all_unknown_tokens_are_enclosed(tokens, metadata_boundary)
+    local count = 0
+
+    for i = 1, #tokens do
+        local t = tokens[i]
+        if t then
+            local before_boundary = (not metadata_boundary) or i < metadata_boundary
+            local unknown_candidate =
+                t.kind ~= "separator"
+                and t.category ~= "opening_bracket"
+                and t.category ~= "closing_bracket"
+                and not t.keyword
+                and type(t.value) == "string"
+                and #t.value > 1
+
+            if before_boundary and unknown_candidate then
+                count = count + 1
+                if not t.enclosed then
+                    return false, count
+                end
+            end
+        end
+    end
+
+    return count > 0, count
 end
 
 ------------------------------------------------------------
@@ -649,23 +1040,114 @@ local function detect_structural_patterns(filename)
         return patterns
     end
 
-    local lower = filename:lower()
+    local lower = normalize_filename_for_parse(filename):lower()
 
-    -- Fansub style: "2nd Season - 09"
+    local function parse_word_ordinal(word)
+        return ORDINAL_WORD_NUMBERS[word]
+    end
+
+    -- Explicit season ranges: "Seasons 1-3" / "Season 01 ~ 03"
     do
-        local ord_num, ep_num = lower:match("(%d+)%a%a%s+season%s*[-–—]%s*(%d+)")
-        if ord_num and ep_num then
+        local s1, s2 = lower:match("seasons?%s+(%d+)%s*[%-%~]%s*(%d+)")
+        if s1 and s2 then
+            patterns.season = tonumber(s1)
+            patterns.season_end = tonumber(s2)
+        end
+    end
+
+    -- Combined token episode range: S01E01-13 / S01EP29~31
+    if not patterns.episode then
+        local s, e1, e2 = lower:match("%f[%w]s(%d+)e[p]?(%d+)%s*[%-%~]%s*(%d+)%f[%W]")
+        if s and e1 and e2 then
+            patterns.season = tonumber(s)
+            patterns.episode = tonumber(e1)
+            patterns.episode_end = tonumber(e2)
+        end
+    end
+
+    -- Combined token: S01E02 / S01EP02 / S01OVA01 / S01SP01
+    --if not patterns.episode then
+        --local s, e = lower:match("%f[%w]s(%d+)e(%d+)%f[%W]")
+        --if not s then s, e = lower:match("%f[%w]s(%d+)ep(%d+)%f[%W]") end
+        --if not s then s, e = lower:match("%f[%w]s(%d+)ova(%d+)%f[%W]") end
+        --if not s then s, e = lower:match("%f[%w]s(%d+)oad(%d+)%f[%W]") end
+        --if not s then s, e = lower:match("%f[%w]s(%d+)sp(%d+)%f[%W]") end
+        --if s and e then
+            --patterns.season = tonumber(s)
+            --patterns.episode = tonumber(e)
+        --end
+    --end
+
+    -- 01x02 format (guard against resolutions like 1920x1080)
+    if not (patterns.season and patterns.episode) then
+        local s, e = lower:match("%f[%d](%d+)[x](%d+)%f[%D]")
+        if s and e then
+            local sn = tonumber(s)
+            local en = tonumber(e)
+            if sn and en and sn > 0 and sn <= 30 and en > 0 and en <= 500 then
+                if not (en < 10 and not e:match("^0%d$")) then
+                    patterns.season = sn
+                    patterns.episode = en
+                end
+            end
+        end
+    end
+
+    -- Fansub style: "2nd Season - 09" / "2nd Season - 09-13"
+    if not (patterns.season and patterns.episode) then
+        local ord_num, ep_num, ep_end = lower:match("(%d+)%a%a%s+season%s*%-%s*(%d+)%s*[%-%~]%s*(%d+)")
+        if ord_num and ep_num and ep_end then
             patterns.season = tonumber(ord_num)
+            patterns.episode = tonumber(ep_num)
+            patterns.episode_end = tonumber(ep_end)
+        else
+            ord_num, ep_num = lower:match("(%d+)%a%a%s+season%s*%-%s*(%d+)")
+            if ord_num and ep_num then
+                patterns.season = tonumber(ord_num)
+                patterns.episode = tonumber(ep_num)
+            end
+        end
+    end
+
+    -- Word ordinal style: "First Season - 09"
+    if not (patterns.season and patterns.episode) then
+        local ord_word, ep_num = lower:match("(%a+)%s+season%s*%-%s*(%d+)")
+        local ord_num = ord_word and parse_word_ordinal(ord_word)
+        if ord_num and ep_num then
+            patterns.season = ord_num
             patterns.episode = tonumber(ep_num)
         end
     end
 
-    -- Variant: "Season 2 - 09"
+    -- Variant: "Season 2 - 09" / "Season 2 - 09-13"
     if not (patterns.season and patterns.episode) then
-        local season_num, ep_num = lower:match("season%s+(%d+)%s*[-–—]%s*(%d+)")
-        if season_num and ep_num then
+        local season_num, ep_num, ep_end = lower:match("season%s+(%d+)%s*%-%s*(%d+)%s*[%-%~]%s*(%d+)")
+        if season_num and ep_num and ep_end then
             patterns.season = tonumber(season_num)
             patterns.episode = tonumber(ep_num)
+            patterns.episode_end = tonumber(ep_end)
+        else
+            season_num, ep_num = lower:match("season%s+(%d+)%s*%-%s*(%d+)")
+            if season_num and ep_num then
+                patterns.season = tonumber(season_num)
+                patterns.episode = tonumber(ep_num)
+            end
+        end
+    end
+
+    -- Variant: "S1 - 09" / "S1 - 09-13"
+    if not (patterns.season and patterns.episode) then
+        local season_num, ep_num, ep_end = lower:match("%f[%w]s(%d+)%s*%-%s*(%d+)%s*[%-%~]%s*(%d+)%f[%W]")
+        if season_num and ep_num and ep_end then
+            patterns.season = tonumber(season_num)
+            patterns.episode = tonumber(ep_num)
+            patterns.episode_end = tonumber(ep_end)
+        else
+            season_num, ep_num = lower:match("%f[%w]s(%d+)%s*%-%s*(%d+)%f[%W]")
+            if season_num and ep_num then
+                patterns.season = tonumber(season_num)
+                patterns.episode = tonumber(ep_num)
+            end
         end
     end
 
@@ -680,15 +1162,22 @@ local function parseContext(tokens, patterns)
     local info = {
         title = nil,
         season = nil,
+        season_end = nil,
 		part = nil,
         cour = nil,
         episode = nil,
+        episode_end = nil,
+        _episode_anchor_idx = nil,
+        episode_alt = nil,
         movie_index = nil,
+        release_group = nil,
         episode_title = nil,
         type = "unknown",
         metadata = {},
         year = nil,
         airdate = nil,
+        file_checksum = nil,
+        file_extension = nil,
 
         _episode_score = 0,
         _movie_score = 0
@@ -709,8 +1198,17 @@ local function parseContext(tokens, patterns)
 			info._episode_score = info._episode_score + 120
 		end
 
+		if patterns.episode_end then
+			info.episode_end = patterns.episode_end
+			info._episode_score = info._episode_score + 20
+		end
+
 		if patterns.season then
 			info.season = patterns.season
+		end
+
+		if patterns.season_end then
+			info.season_end = patterns.season_end
 		end
 
 		if patterns.year then
@@ -770,6 +1268,84 @@ local function parseContext(tokens, patterns)
         return false
     end
 
+    local function has_range_separator_between_indices(left, right)
+        if not left or not right then return false end
+        local a = math.min(left, right) + 1
+        local b = math.max(left, right) - 1
+        for k = a, b do
+            if tokens[k] and (tokens[k].value == "-" or tokens[k].value == "~") then
+                return true
+            end
+        end
+        return false
+    end
+
+    local function metadata_bucket_key(raw_key)
+        if raw_key == "subtitle" then
+            return "subtitles"
+        end
+        return raw_key
+    end
+
+    local function metadata_push_unique(raw_key, value)
+        local key = metadata_bucket_key(raw_key)
+        if type(key) ~= "string" or key == "" then
+            return
+        end
+        if type(value) ~= "string" or value == "" then
+            return
+        end
+
+        info.metadata[key] = info.metadata[key] or {}
+        local bucket = info.metadata[key]
+        local nv = norm(value)
+        for i = 1, #bucket do
+            if norm(bucket[i]) == nv then
+                return
+            end
+        end
+
+        table.insert(bucket, value)
+    end
+
+    local function match_multi_keyword_sequence(start_idx)
+        local first = tokens[start_idx]
+        if not first or first.kind ~= "word" or first._consumed then
+            return nil, nil
+        end
+
+        for m = 1, #MULTI_TOKEN_KEYWORDS do
+            local rule = MULTI_TOKEN_KEYWORDS[m]
+            local idx = start_idx
+            local matched = true
+            local consumed_indices = {}
+
+            for w = 1, #rule.words do
+                local tk = tokens[idx]
+                if not tk
+                   or tk.kind ~= "word"
+                   or tk._consumed
+                   or tk.value:lower() ~= rule.words[w]
+                then
+                    matched = false
+                    break
+                end
+
+                consumed_indices[#consumed_indices + 1] = idx
+
+                if w < #rule.words then
+                    idx = next_non_separator_index(idx)
+                end
+            end
+
+            if matched then
+                return rule, consumed_indices
+            end
+        end
+
+        return nil, nil
+    end
+
     ------------------------------------------------------------
     -- POSITION WEIGHTING
     ------------------------------------------------------------
@@ -790,16 +1366,20 @@ local function parseContext(tokens, patterns)
     -- EPISODE TOKEN DETECTOR (AUTHORITATIVE)
     ------------------------------------------------------------
     local function detect_episode_token(v)
-        local s, e = v:match("^[Ss](%d+)[Ee](%d+)$")
+        local s, e = v:match("^[Ss](%d+)[Ee][Pp]?(%d+)$")
+        if not s then s, e = v:match("^[Ss](%d+)[Oo][Vv][Aa](%d+)$") end
+        if not s then s, e = v:match("^[Ss](%d+)[Oo][Aa][Dd](%d+)$") end
+        if not s then s, e = v:match("^[Ss](%d+)[Ss][Pp](%d+)$") end
         if not s then s, e = v:match("^(%d+)[xX](%d+)$") end
         if s and e then
             return tonumber(s), tonumber(e)
         end
 
-                local ep = v:match("^[Ee][Pp]?(%d+)$")
-                or v:match("^[Ee][Pp]?(%d+)[Vv]%d+$")
-                or v:match("^#(%d+)$")
-                or v:match("^(%d+)v%d+$")
+        local ep = v:match("^[Ee][Pp]?(%d+)$")
+            or v:match("^[Ee][Pp]?(%d+)[Vv]%d+$")
+            or v:match("^#(%d+)$")
+            or v:match("^(%d+)v%d+$")
+            or v:match("^(%d+)'$")
 
         if ep then
             return nil, tonumber(ep)
@@ -834,6 +1414,8 @@ local function parseContext(tokens, patterns)
 		["HINDI"]=true,
 		["MULTI"]=true,
 		["DUAL"]=true,
+		["AUDIO"]=true,
+		["DUAL-AUDIO"]=true,
 		["DUBBED"]=true,
 		["ONLINE"]=true,
 		["WATCH"]=true,
@@ -854,6 +1436,8 @@ local function parseContext(tokens, patterns)
 	}
 
 	local metadata_boundary = detect_metadata_boundary(tokens)
+    info.release_group = mark_release_group_tokens(tokens, metadata_boundary)
+    local all_unknown_enclosed = all_unknown_tokens_are_enclosed(tokens, metadata_boundary)
 
     ------------------------------------------------------------
     -- MAIN LOOP
@@ -883,20 +1467,36 @@ local function parseContext(tokens, patterns)
         --------------------------------------------------------
         -- BRACKET CONTROL
         --------------------------------------------------------
-        if v == "[" then
+        if t.category == "opening_bracket" then
             inside_brackets = true
 
-        elseif v == "]" then
+        elseif t.category == "closing_bracket" then
             inside_brackets = false
 
-        elseif not inside_brackets then
+        elseif not inside_brackets or t._title_bracket or all_unknown_enclosed then
 		
 			local role = resolve_number_role(tokens, i)
 		
 			-- CRC32 SUPPRESSION
 			if t.kind == "crc32" then
+                if not info.file_checksum then
+                    info.file_checksum = v:upper()
+                end
 				consumed = true
 			end
+
+            -- Multi-token keyword sequences (Dual Audio, Multiple Subtitles, ...)
+            if not consumed and t.kind == "word" then
+                local seq_rule, seq_indices = match_multi_keyword_sequence(i)
+                if seq_rule then
+                    metadata_push_unique(seq_rule.key, seq_rule.value)
+                    for idx = 2, #seq_indices do
+                        tokens[seq_indices[idx]]._consumed = true
+                    end
+                    info._movie_score = info._movie_score + (8 * w)
+                    consumed = true
+                end
+            end
 		
 			--------------------------------------------------------
 			-- FILE SIZE SUPPRESSION
@@ -989,11 +1589,14 @@ local function parseContext(tokens, patterns)
                 local vl = v:lower()
                 local next_sig_idx, next_sig = next_non_separator_index(i)
 
-                -- S3
-                local ss = vl:match("^s(%d+)$")
+                -- S3 / S03v2
+                local ss = vl:match("^s(%d+)$") or vl:match("^s(%d+)v%d+$")
 
                 -- 2nd Season / 3rd Season
                 local ord = vl:match("^(%d+)%a%a$")
+
+                -- First Season / Second Season
+                local ord_word = ORDINAL_WORD_NUMBERS[vl]
 
                 -- Japanese: San no Shou / Ni no Shou
                 local js = match_japanese_season(tokens, i)
@@ -1003,11 +1606,16 @@ local function parseContext(tokens, patterns)
                     info._episode_score = info._episode_score + (30 * w)
                     -- Keep ordinal season wording in the title (e.g., "2nd Season").
 
+                elseif ord_word and next_sig and next_sig.kind == "word" and next_sig.value:lower() == "season" then
+                    info.season = ord_word
+                    info._episode_score = info._episode_score + (30 * w)
+
                 elseif ss then
                     info.season = tonumber(ss)
                     info._episode_score = info._episode_score + (30 * w)
                     consumed = true
 
+                
                 elseif vl == "season" and next_sig and next_sig.kind == "number" then
                     -- Do not treat "Season - 09" as season index 9.
                     -- Keep "Season" in title and let episode detection consume 09.
@@ -1034,6 +1642,7 @@ local function parseContext(tokens, patterns)
 			then
                 info.season = s or info.season or 1
                 info.episode = e
+                info._episode_anchor_idx = i
                 info._episode_score = info._episode_score + (60 * w)
                 state = "episode_title"
 				number_context = "episode"
@@ -1050,6 +1659,7 @@ local function parseContext(tokens, patterns)
 			   and not info.episode
 			then
 				info.episode = tonumber(v)
+				info._episode_anchor_idx = i
 				info.season = info.season or 1
 				info._episode_score = info._episode_score + (50 * w)
 				state = "episode_title"
@@ -1079,6 +1689,7 @@ local function parseContext(tokens, patterns)
 			   and not info.episode
 			then
 				info.episode = tonumber(n1.value)
+				info._episode_anchor_idx = i + 1
 				info.season = info.season or 1
 				info._episode_score = info._episode_score + (60 * w)
 				state = "episode_title"
@@ -1097,6 +1708,7 @@ local function parseContext(tokens, patterns)
 
 			elseif role == "episode" then
 				info.episode = tonumber(v)
+				info._episode_anchor_idx = i
 				info.season = info.season or 1
 				info._episode_score = info._episode_score + (70 * w)
 				state = "episode_title"
@@ -1117,6 +1729,48 @@ local function parseContext(tokens, patterns)
 				info._episode_score = info._episode_score + (30 * w)
 				consumed = true
 			end
+
+            ------------------------------------------------
+            -- EPISODE RANGE: 01-13 / 01~13
+            ------------------------------------------------
+            if not consumed
+               and info.episode
+               and not info.episode_end
+               and info._episode_anchor_idx
+               and t.kind == "number"
+               and i > info._episode_anchor_idx
+               and has_range_separator_between_indices(info._episode_anchor_idx, i)
+               and state ~= "metadata"
+            then
+                local ep_end = tonumber(v)
+                if ep_end
+                   and ep_end >= info.episode
+                   and ep_end <= 1000
+                   and not looks_like_resolution(ep_end)
+                   and not looks_like_year(ep_end)
+                then
+                    info.episode_end = ep_end
+                    info._episode_score = info._episode_score + (20 * w)
+                    consumed = true
+                end
+            end
+
+            ------------------------------------------------
+            -- ALT EPISODE NUMBER: 01 (14)
+            ------------------------------------------------
+            if not consumed
+               and info.episode
+               and not info.episode_alt
+               and t.kind == "number"
+               and tokens[i-1] and tokens[i-1].value == "("
+               and tokens[i+1] and tokens[i+1].value == ")"
+            then
+                local alt = tonumber(v)
+                if alt and alt >= 1 and alt <= 2000 then
+                    info.episode_alt = alt
+                    consumed = true
+                end
+            end
 
             ------------------------------------------------
             -- LOOSE EPISODE NUMBER (GUARDED)
@@ -1174,6 +1828,7 @@ local function parseContext(tokens, patterns)
 			   and (#title_parts >= 2 or total_tokens > 6)
 			then
 				info.episode = num
+				info._episode_anchor_idx = i
 				info.season = info.season or 1
 				state = "episode_title"
 				number_context = "episode"
@@ -1232,33 +1887,30 @@ local function parseContext(tokens, patterns)
             -- METADATA COLLECTION
             --------------------------------------------------------
             if t.keyword then
-                info.metadata[t.keyword] = info.metadata[t.keyword] or {}
-                table.insert(info.metadata[t.keyword], v)
+                metadata_push_unique(t.keyword, v)
             end
-			
-			--------------------------------------------------------
+
+            --------------------------------------------------------
             -- LANGUAGE TAG STRIPPING
             --------------------------------------------------------
-			if t.kind == "word"
-			   and LANGUAGE_TAGS[t.value:upper()]
-			then
-				info.metadata["language"] = info.metadata["language"] or {}
-				table.insert(info.metadata["language"], v)
-				consumed = true
-			end
-			
-			--------------------------------------------------------
+            if t.kind == "word"
+               and LANGUAGE_TAGS[t.value:upper()]
+            then
+                metadata_push_unique("language", v)
+                consumed = true
+            end
+
+            --------------------------------------------------------
             -- SCENE-TAG NORMALIZATION
             --------------------------------------------------------
-			if t.kind == "word"
-			   and SCENE_TAGS[t.value:upper()]
-			then
-				info.metadata["scene_tags"] = info.metadata["scene_tags"] or {}
-				table.insert(info.metadata["scene_tags"], v)
+            if t.kind == "word"
+               and SCENE_TAGS[t.value:upper()]
+            then
+                metadata_push_unique("scene_tags", v)
 
-				info._movie_score = info._movie_score + (10 * w)
-				consumed = true
-			end
+                info._movie_score = info._movie_score + (10 * w)
+                consumed = true
+            end
 
             --------------------------------------------------------
             -- SAFE TITLE / EPISODE TITLE CAPTURE
@@ -1307,7 +1959,13 @@ local function parseContext(tokens, patterns)
 
 				elseif state == "episode_title" and t.kind == "word" then
                     local wl = v:lower()
-                    if not (patterns and patterns.movie_boundary and MOVIE_SUBTITLE_STOPWORDS[wl]) then
+                    local allow_episode_title_token =
+                        (all_unknown_enclosed and t.enclosed)
+                        or ((not all_unknown_enclosed) and (not t.enclosed or t._title_bracket))
+
+                    if allow_episode_title_token
+                       and not (patterns and patterns.movie_boundary and MOVIE_SUBTITLE_STOPWORDS[wl])
+                    then
                         table.insert(ep_title_parts, v)
                     end
                 end
@@ -1322,6 +1980,24 @@ local function parseContext(tokens, patterns)
 			number_context = nil
 		end
 		::continue::
+    end
+
+    -- Habari-like enclosed gating fallback:
+    -- when unknown tokens are enclosed, prefer enclosed title tokens before episode anchor.
+    if #title_parts == 0 and all_unknown_enclosed and info._episode_anchor_idx then
+        for j = 1, info._episode_anchor_idx - 1 do
+            local tk = tokens[j]
+            if tk
+               and tk.enclosed
+               and tk.kind ~= "separator"
+               and tk.category ~= "opening_bracket"
+               and tk.category ~= "closing_bracket"
+               and not tk.keyword
+               and not is_release_group(tokens, j)
+            then
+                table.insert(title_parts, tk.value)
+            end
+        end
     end
 	
 	------------------------------------------------------------
@@ -1630,6 +2306,9 @@ local function normalize(p, chosen)
 
         local season = p.season or 1
         local se_ep = string.format("S%02dE%02d", season, p.episode)
+        if p.episode_end and p.episode_end >= p.episode then
+            se_ep = string.format("S%02dE%02d-E%02d", season, p.episode, p.episode_end)
+        end
 
         local base = title
 
@@ -1674,6 +2353,10 @@ local function normalize(p, chosen)
     ------------------------------------------------
     -- FALLBACK
     ------------------------------------------------
+    if p.season and p.season_end and p.season_end >= p.season then
+        return string.format("%s - S%02d-S%02d", title, p.season, p.season_end)
+    end
+
     return title
 end
 
@@ -2697,7 +3380,9 @@ end
 -- CONSTRUCTOR
 ------------------------------------------------------------
 function Parser:new(filename)
-    local raw = tokenize(filename)
+    local original_filename = filename or ""
+    local normalized_filename = normalize_filename_for_parse(original_filename)
+    local raw = tokenize(normalized_filename)
     local tokens = {}
 
     for i = 1, #raw do
@@ -2705,9 +3390,10 @@ function Parser:new(filename)
         assignKeyword(t)
         tokens[i] = t
     end
-	
-        -- Start with structural filename patterns (e.g., "2nd Season - 09").
-    local patterns = detect_structural_patterns(filename)
+    annotate_enclosed_groups(tokens)
+
+    -- Start with structural filename patterns (e.g., "2nd Season - 09").
+    local patterns = detect_structural_patterns(normalized_filename)
     local movie_boundary = detect_movie_boundary(tokens)
     if movie_boundary then
         patterns.movie_boundary = movie_boundary.boundary
@@ -2719,15 +3405,16 @@ function Parser:new(filename)
     end
 
     local ctx = parseContext(tokens, patterns)
-	
-	-- Early filename movie hard-lock
-	if filename:lower():match("%f[%w]movie%f[%W]") then
-		ctx._movie_score = ctx._movie_score + 150
-	end
-	
+    ctx.file_extension = extract_file_extension(original_filename) or ctx.file_extension
+
+    -- Early filename movie hard-lock
+    if original_filename:lower():match("%f[%w]movie%f[%W]") then
+        ctx._movie_score = ctx._movie_score + 150
+    end
+
     local self = setmetatable(ctx, Parser)
-    self.filename = filename
-	
+    self.filename = original_filename
+
     return self
 end
 
@@ -2735,7 +3422,7 @@ end
 -- LOAD MEDIA TITLE
 ------------------------------------------------------------
 local function load_media_title()
-    local path = mp.get_property("filename/no-ext") or ""
+    local path = mp.get_property("filename") or ""
 
     local p = Parser:new(path)
 	local chosen
