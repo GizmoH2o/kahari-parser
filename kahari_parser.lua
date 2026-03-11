@@ -3422,7 +3422,7 @@ end
 -- LOAD MEDIA TITLE
 ------------------------------------------------------------
 local function load_media_title()
-    local path = mp.get_property("filename") or ""
+    local path = mp.get_property("filename/no-ext") or ""
 
     local p = Parser:new(path)
 	local chosen
@@ -3607,3 +3607,4 @@ local function load_media_title()
 end
 
 mp.register_event("file-loaded", load_media_title)
+
